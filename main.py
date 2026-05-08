@@ -9,7 +9,6 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
-# ==================== CONFIG ====================
 ADMIN_USERNAME = os.environ.get('ADMIN_USER', 'admin')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASS', 'admin123')
 KEYS_FILE = '/tmp/keys.json'
@@ -24,7 +23,6 @@ TIERS = {
     'lifetime': {'name': 'Lifetime', 'hours': 0, 'price': '$99.99'}
 }
 
-# ==================== HELPERS ====================
 def load_json(path, default=None):
     if default is None:
         default = {}
@@ -44,23 +42,12 @@ def save_json(path, data):
     except Exception as e:
         print(f"Save error: {e}")
 
-def load_keys():
-    return load_json(KEYS_FILE, {})
-
-def save_keys(keys):
-    save_json(KEYS_FILE, keys)
-
-def load_logs():
-    return load_json(LOGS_FILE, [])
-
-def save_logs(logs):
-    save_json(LOGS_FILE, logs)
-
-def load_hw_bans():
-    return load_json(HARDWARE_BANS_FILE, [])
-
-def save_hw_bans(bans):
-    save_json(HARDWARE_BANS_FILE, bans)
+def load_keys(): return load_json(KEYS_FILE, {})
+def save_keys(keys): save_json(KEYS_FILE, keys)
+def load_logs(): return load_json(LOGS_FILE, [])
+def save_logs(logs): save_json(LOGS_FILE, logs)
+def load_hw_bans(): return load_json(HARDWARE_BANS_FILE, [])
+def save_hw_bans(bans): save_json(HARDWARE_BANS_FILE, bans)
 
 def add_log(action, details="", ip=None):
     logs = load_logs()
@@ -122,7 +109,6 @@ def time_ago(ts):
         return f"{diff//3600}h ago"
     return f"{diff//86400}d ago"
 
-# ==================== ADMIN LOGIN PAGE ====================
 ADMIN_LOGIN_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -251,7 +237,6 @@ ADMIN_LOGIN_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-# ==================== ADMIN DASHBOARD PAGE ====================
 ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -815,14 +800,17 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
     </div>
 
     <script>
-        let currentTab = 'overview', modalCallback = null, usageChart = null, tierChart = null;
+        var currentTab = 'overview', modalCallback = null, usageChart = null, tierChart = null;
 
         function showTab(tabName) {
-            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-            event.target.closest('.nav-link')?.classList.add('active');
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            var links = document.querySelectorAll('.nav-link');
+            for (var i = 0; i < links.length; i++) links[i].classList.remove('active');
+            var target = event.target.closest('.nav-link');
+            if (target) target.classList.add('active');
+            var tabs = document.querySelectorAll('.tab-content');
+            for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
             document.getElementById('tab-' + tabName).classList.add('active');
-            const titles = { 'overview': 'Dashboard Overview', 'keys': 'Key Management', 'hwbans': 'Hardware Bans', 'logs': 'System Logs', 'analytics': 'Usage Analytics' };
+            var titles = { 'overview': 'Dashboard Overview', 'keys': 'Key Management', 'hwbans': 'Hardware Bans', 'logs': 'System Logs', 'analytics': 'Usage Analytics' };
             document.getElementById('pageTitle').textContent = titles[tabName] || 'Dashboard';
             currentTab = tabName;
             if (tabName === 'logs') loadLogs();
@@ -830,23 +818,30 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             if (tabName === 'analytics') initCharts();
             document.getElementById('sidebar').classList.remove('open');
         }
+
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
         function selectTier(tierId) {
-            document.querySelectorAll('.tier-card').forEach(c => c.classList.remove('selected'));
-            document.querySelector(`.tier-card[data-tier="${tierId}"]`)?.classList.add('selected');
+            var cards = document.querySelectorAll('.tier-card');
+            for (var i = 0; i < cards.length; i++) cards[i].classList.remove('selected');
+            var selected = document.querySelector('.tier-card[data-tier="' + tierId + '"]');
+            if (selected) selected.classList.add('selected');
             document.getElementById('tierSelect').value = tierId;
         }
+
         function updateTierCards() { selectTier(document.getElementById('tierSelect').value); }
 
         function showToast(message, type, desc) {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
+            var container = document.getElementById('toastContainer');
+            var toast = document.createElement('div');
             toast.className = 'toast ' + (type || 'success');
-            const icons = { success: '\u2713', error: '\u2715', warning: '\u26a0' };
-            toast.innerHTML = '<span class="toast-icon">' + (icons[type] || '\u2139') + '</span><div><div class="toast-message">' + message + '</div>' + (desc ? '<div class="toast-desc">' + desc + '</div>' : '') + '</div>';
+            var icons = { success: '&#10003;', error: '&#10007;', warning: '&#9888;' };
+            var icon = icons[type] || '&#8505;';
+            toast.innerHTML = '<span class="toast-icon">' + icon + '</span><div><div class="toast-message">' + message + '</div>' + (desc ? '<div class="toast-desc">' + desc + '</div>' : '') + '</div>';
             container.appendChild(toast);
             setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, 4000);
         }
+
         function showModal(title, message, iconClass, cb) {
             document.getElementById('modalTitle').textContent = title;
             document.getElementById('modalMessage').textContent = message;
@@ -854,142 +849,184 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             modalCallback = cb;
             document.getElementById('modalOverlay').classList.add('show');
         }
+
         function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); modalCallback = null; }
+
         document.getElementById('modalConfirm').onclick = function() { if (modalCallback) modalCallback(); closeModal(); };
 
         async function apiCall(endpoint, method, data) {
             try {
-                const response = await fetch(endpoint, { method: method || 'GET', headers: { 'Content-Type': 'application/json' }, body: data ? JSON.stringify(data) : null });
+                var opts = { method: method || 'GET', headers: { 'Content-Type': 'application/json' } };
+                if (data) opts.body = JSON.stringify(data);
+                var response = await fetch(endpoint, opts);
                 return await response.json();
             } catch (error) { showToast('Network error', 'error'); return null; }
         }
 
         async function generateKeys() {
-            const tier = document.getElementById('tierSelect').value;
-            const count = parseInt(document.getElementById('keyCount').value) || 1;
-            const result = await apiCall('/api/generate-key', 'POST', { tier: tier, count: count });
+            var tier = document.getElementById('tierSelect').value;
+            var count = parseInt(document.getElementById('keyCount').value) || 1;
+            console.log('Generating keys:', tier, count);
+            var result = await apiCall('/api/generate-key', 'POST', { tier: tier, count: count });
+            console.log('Result:', result);
             if (result && result.keys) {
-                document.getElementById('keyList').innerHTML = result.keys.map(function(k) {
-                    return '<div class="key-item"><span>' + k + '</span><button onclick="copyToClipboard('' + k + '')" title="Copy"><i class="fas fa-copy"></i></button></div>';
-                }).join('');
+                var html = '';
+                for (var i = 0; i < result.keys.length; i++) {
+                    var k = result.keys[i];
+                    html += '<div class="key-item"><span>' + k + '</span><button onclick="copyToClipboard(&quot;' + k + '&quot;)" title="Copy"><i class="fas fa-copy"></i></button></div>';
+                }
+                document.getElementById('keyList').innerHTML = html;
                 document.getElementById('generatedKeys').classList.add('show');
                 showToast('Generated ' + result.count + ' keys!', 'success', 'Tier: ' + tier.toUpperCase());
-                refreshData();
+                setTimeout(function() { window.location.reload(); }, 1500);
+            } else {
+                showToast('Failed to generate keys', 'error');
             }
         }
+
         async function copyKey(key) { await copyToClipboard(key); showToast('Key copied to clipboard!', 'success'); }
+
         async function extendKey(key) {
-            const result = await apiCall('/api/extend-key', 'POST', { key: key, hours: 24 });
+            var result = await apiCall('/api/extend-key', 'POST', { key: key, hours: 24 });
             if (result && result.success) { showToast('Key extended +24h!', 'success'); refreshData(); }
         }
+
         async function banKey(key) {
             showModal('Ban Key', 'Are you sure you want to ban key:
 ' + key + '?', 'warning', async function() {
-                const result = await apiCall('/api/ban-key', 'POST', { key: key });
+                var result = await apiCall('/api/ban-key', 'POST', { key: key });
                 if (result && result.success) { showToast('Key banned!', 'success'); refreshData(); }
             });
         }
+
         async function unbanKey(key) {
-            const result = await apiCall('/api/unban-key', 'POST', { key: key });
+            var result = await apiCall('/api/unban-key', 'POST', { key: key });
             if (result && result.success) { showToast('Key unbanned!', 'success'); refreshData(); }
         }
+
         async function hwBanDevice(deviceId) {
             showModal('Hardware Ban', 'Ban device permanently:
 ' + deviceId + '?', 'danger', async function() {
-                const result = await apiCall('/api/hw-ban', 'POST', { device_id: deviceId });
+                var result = await apiCall('/api/hw-ban', 'POST', { device_id: deviceId });
                 if (result && result.success) { showToast('Device hardware banned!', 'success'); refreshData(); }
             });
         }
+
         async function deleteKey(key) {
             showModal('Delete Key', 'Permanently delete key:
 ' + key + '?
 
 This action cannot be undone!', 'danger', async function() {
-                const result = await apiCall('/api/delete-key', 'POST', { key: key });
+                var result = await apiCall('/api/delete-key', 'POST', { key: key });
                 if (result && result.success) { showToast('Key deleted!', 'success'); refreshData(); }
             });
         }
+
         async function cleanupExpired() {
             showModal('Cleanup Expired', 'Delete all expired keys?
 This action cannot be undone!', 'warning', async function() {
-                const result = await apiCall('/api/cleanup', 'POST');
+                var result = await apiCall('/api/cleanup', 'POST');
                 if (result) { showToast('Deleted ' + result.deleted + ' expired keys!', 'success'); refreshData(); }
             });
         }
+
         function refreshData() { window.location.reload(); }
 
         async function loadLogs() {
-            const container = document.getElementById('logsContainer');
+            var container = document.getElementById('logsContainer');
             container.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
-            const result = await apiCall('/api/logs');
+            var result = await apiCall('/api/logs');
             if (result && result.logs) {
-                container.innerHTML = result.logs.length === 0
-                    ? '<div class="empty-state"><i class="fas fa-inbox"></i><p>No logs found</p></div>'
-                    : result.logs.map(function(l) {
+                if (result.logs.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No logs found</p></div>';
+                } else {
+                    var html = '';
+                    for (var i = 0; i < result.logs.length; i++) {
+                        var l = result.logs[i];
                         var cls = l.action.indexOf('SUCCESS') !== -1 || l.action.indexOf('GENERATE') !== -1 ? 'success'
                             : l.action.indexOf('FAIL') !== -1 || l.action.indexOf('DELETE') !== -1 ? 'fail'
                             : l.action.indexOf('BAN') !== -1 ? 'warn' : 'info';
-                        return '<div class="log-item"><div class="log-time">' + new Date(l.timestamp * 1000).toLocaleTimeString() + '</div><div class="log-action ' + cls + '">' + l.action + '</div><div class="log-details">' + l.details + '</div><div class="log-ip">' + l.ip + '</div></div>';
-                    }).join('');
+                        html += '<div class="log-item"><div class="log-time">' + new Date(l.timestamp * 1000).toLocaleTimeString() + '</div><div class="log-action ' + cls + '">' + l.action + '</div><div class="log-details">' + l.details + '</div><div class="log-ip">' + l.ip + '</div></div>';
+                    }
+                    container.innerHTML = html;
+                }
             }
         }
+
         async function loadHwBans() {
-            const container = document.getElementById('hwBansContainer');
+            var container = document.getElementById('hwBansContainer');
             container.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
-            const result = await apiCall('/api/hw-bans');
+            var result = await apiCall('/api/hw-bans');
             if (result && result.bans) {
-                container.innerHTML = result.bans.length === 0
-                    ? '<div class="empty-state"><i class="fas fa-shield-halved"></i><p>No hardware bans</p></div>'
-                    : '<div class="table-container"><table><thead><tr><th>Device ID</th><th>Banned At</th><th>Reason</th><th>Actions</th></tr></thead><tbody>' +
-                      result.bans.map(function(b) {
-                        return '<tr><td><span class="device-text">' + b.device_id + '</span></td><td style="color: var(--text-secondary); font-size: 12px;">' + new Date(b.banned_at * 1000).toLocaleString() + '</td><td style="color: var(--text-secondary); font-size: 12px;">' + (b.reason || 'Manual ban') + '</td><td><button class="action-btn extend" onclick="unbanHwDevice('' + b.device_id + '')" title="Unban Device"><i class="fas fa-check"></i></button></td></tr>';
-                      }).join('') + '</tbody></table></div>';
+                if (result.bans.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><i class="fas fa-shield-halved"></i><p>No hardware bans</p></div>';
+                } else {
+                    var html = '<div class="table-container"><table><thead><tr><th>Device ID</th><th>Banned At</th><th>Reason</th><th>Actions</th></tr></thead><tbody>';
+                    for (var i = 0; i < result.bans.length; i++) {
+                        var b = result.bans[i];
+                        html += '<tr><td><span class="device-text">' + b.device_id + '</span></td><td style="color: var(--text-secondary); font-size: 12px;">' + new Date(b.banned_at * 1000).toLocaleString() + '</td><td style="color: var(--text-secondary); font-size: 12px;">' + (b.reason || 'Manual ban') + '</td><td><button class="action-btn extend" onclick="unbanHwDevice('' + b.device_id + '')" title="Unban Device"><i class="fas fa-check"></i></button></td></tr>';
+                    }
+                    html += '</tbody></table></div>';
+                    container.innerHTML = html;
+                }
             }
         }
+
         async function unbanHwDevice(deviceId) {
             showModal('Unban Device', 'Remove hardware ban for:
 ' + deviceId + '?', 'warning', async function() {
-                const result = await apiCall('/api/hw-unban', 'POST', { device_id: deviceId });
+                var result = await apiCall('/api/hw-unban', 'POST', { device_id: deviceId });
                 if (result && result.success) { showToast('Device unbanned!', 'success'); loadHwBans(); refreshData(); }
             });
         }
+
         async function clearLogs() {
             showModal('Clear Logs', 'Delete all system logs?
 This action cannot be undone!', 'danger', async function() {
-                const result = await apiCall('/api/clear-logs', 'POST');
+                var result = await apiCall('/api/clear-logs', 'POST');
                 if (result && result.success) { showToast('All logs cleared!', 'success'); loadLogs(); }
             });
         }
+
         function searchKeys() {
-            const q = document.getElementById('keySearch').value.toLowerCase();
-            document.querySelectorAll('#keysTableBody tr').forEach(function(row) {
-                const key = row.getAttribute('data-key').toLowerCase();
-                const device = (row.getAttribute('data-device') || '').toLowerCase();
+            var q = document.getElementById('keySearch').value.toLowerCase();
+            var rows = document.querySelectorAll('#keysTableBody tr');
+            for (var i = 0; i < rows.length; i++) {
+                var row = rows[i];
+                var key = row.getAttribute('data-key').toLowerCase();
+                var device = (row.getAttribute('data-device') || '').toLowerCase();
                 row.style.display = (key.indexOf(q) !== -1 || device.indexOf(q) !== -1) ? '' : 'none';
-            });
+            }
         }
+
         function exportKeys() {
             apiCall('/api/keys').then(function(result) {
                 if (result && result.keys) {
-                    const data = result.keys.map(function(k) { return k.key + ',' + k.tier + ',' + (k.device_id || 'Unbound') + ',' + k.uses + ',' + (k.banned ? 'Banned' : 'Active'); }).join('\n');
-                    const csv = 'Key,Tier,Device,Uses,Status\n' + data;
-                    const blob = new Blob([csv], { type: 'text/csv' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
+                    var data = '';
+                    for (var i = 0; i < result.keys.length; i++) {
+                        var k = result.keys[i];
+                        data += k.key + ',' + k.tier + ',' + (k.device_id || 'Unbound') + ',' + k.uses + ',' + (k.banned ? 'Banned' : 'Active') + '\n';
+                    }
+                    var csv = 'Key,Tier,Device,Uses,Status\n' + data;
+                    var blob = new Blob([csv], { type: 'text/csv' });
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
                     a.href = url; a.download = 'ff_keys_' + new Date().toISOString().slice(0,10) + '.csv'; a.click();
                     showToast('Keys exported!', 'success');
                 }
             });
         }
+
         async function copyToClipboard(text) {
             try { await navigator.clipboard.writeText(text); }
-            catch(e) { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+            catch(e) { var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
         }
+
         function initCharts() {
             if (usageChart) { usageChart.destroy(); tierChart.destroy(); }
             apiCall('/api/stats').then(function(stats) {
                 if (!stats) return;
-                const ctx1 = document.getElementById('usageChart').getContext('2d');
+                var ctx1 = document.getElementById('usageChart').getContext('2d');
                 usageChart = new Chart(ctx1, {
                     type: 'line',
                     data: {
@@ -1019,15 +1056,20 @@ This action cannot be undone!', 'danger', async function() {
                 });
                 apiCall('/api/keys').then(function(result) {
                     if (!result || !result.keys) return;
-                    const tierCounts = {};
-                    result.keys.forEach(function(k) { tierCounts[k.tier] = (tierCounts[k.tier] || 0) + 1; });
-                    const ctx2 = document.getElementById('tierChart').getContext('2d');
+                    var tierCounts = {};
+                    for (var i = 0; i < result.keys.length; i++) {
+                        var t = result.keys[i].tier;
+                        tierCounts[t] = (tierCounts[t] || 0) + 1;
+                    }
+                    var labels = Object.keys(tierCounts);
+                    var values = Object.values(tierCounts);
+                    var ctx2 = document.getElementById('tierChart').getContext('2d');
                     tierChart = new Chart(ctx2, {
                         type: 'doughnut',
                         data: {
-                            labels: Object.keys(tierCounts),
+                            labels: labels,
                             datasets: [{
-                                data: Object.values(tierCounts),
+                                data: values,
                                 backgroundColor: ['#FF6B00', '#FF8533', '#FFB347', '#00FF88', '#3399FF'],
                                 borderWidth: 0,
                                 hoverOffset: 10
@@ -1044,10 +1086,12 @@ This action cannot be undone!', 'danger', async function() {
                 });
             });
         }
+
         setInterval(function() { if (currentTab === 'logs') loadLogs(); }, 30000);
+
         document.addEventListener('click', function(e) {
-            const sidebar = document.getElementById('sidebar');
-            const toggle = document.querySelector('.menu-toggle');
+            var sidebar = document.getElementById('sidebar');
+            var toggle = document.querySelector('.menu-toggle');
             if (window.innerWidth <= 768 && sidebar.classList.contains('open') && !sidebar.contains(e.target) && !toggle.contains(e.target))
                 sidebar.classList.remove('open');
         });
@@ -1100,7 +1144,7 @@ def admin_dashboard():
                          hw_ban_count=len(hw_bans),
                          keys=keys, logs=recent_logs, tiers=TIERS)
 
-# ==================== API (for Android app + admin panel) ====================
+# ==================== API ====================
 
 @app.route('/verify', methods=['POST'])
 def verify():
@@ -1110,7 +1154,6 @@ def verify():
     device_id = request.form.get('device_id', '').strip()
     device_name = request.form.get('device_name', 'Unknown').strip()
 
-    # Check hardware ban
     if any(b['device_id'] == device_id for b in hw_bans):
         add_log('VERIFY_HW_BANNED', f"HW banned device tried: {device_id}")
         return jsonify({"valid": False, "message": "Device hardware banned!"})
@@ -1256,7 +1299,6 @@ def api_hw_ban():
                 'reason': data.get('reason', 'Manual ban')
             })
             save_hw_bans(hw_bans)
-            # Also mark all keys with this device as hw_banned
             keys = load_keys()
             for k, v in keys.items():
                 if v.get('device_id') == device_id:
@@ -1274,7 +1316,6 @@ def api_hw_unban():
         hw_bans = load_hw_bans()
         hw_bans = [b for b in hw_bans if b['device_id'] != device_id]
         save_hw_bans(hw_bans)
-        # Unmark keys
         keys = load_keys()
         for k, v in keys.items():
             if v.get('device_id') == device_id:
